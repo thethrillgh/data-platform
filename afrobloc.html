@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afro Bloc - Multi-Role Prototype (Phase 2: Expert Reviewer)</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-bg: #0D1117; --secondary-bg: #161B22; --container-bg: rgba(38, 43, 51, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.15); --text-primary: #E6EDF3; --text-secondary: #8B949E;
+            --accent-blue: #58A6FF; --accent-gold: #FFA726; --accent-green: #3FB950; --accent-red: #F85149;
+            --font-family: 'Inter', sans-serif; --border-radius-md: 8px; --border-radius-lg: 12px;
+        }
+        html { font-size: 16px; /* Base font size */ }
+        body {
+            font-family: var(--font-family); background-color: var(--primary-bg); color: var(--text-primary);
+            margin: 0; padding: 10px; /* Reduced padding for mobile */ display: flex; flex-direction: column; align-items: center; min-height: 100vh; line-height: 1.5;
+        }
+        .main-header {
+            display: flex; flex-wrap: wrap; /* Allow wrapping on small screens */ justify-content: space-between; align-items: center;
+            width: 100%; max-width: 1000px; margin-bottom: 10px; padding: 5px 0;
+        }
+        .logo-header { display: flex; align-items: center; margin-bottom: 5px; /* Space for wrapping */ }
+        .logo-header svg { width: 30px; height: 30px; margin-right: 8px; } /* Smaller logo */
+        .logo-header h1 { font-size: 1.5em; font-weight: 600; color: var(--text-primary); margin: 0; }
+        .role-switcher { display: flex; align-items: center; margin-bottom: 5px; /* Space for wrapping */ }
+        .role-switcher label { font-size: 0.8em; color: var(--text-secondary); margin-right: 5px; }
+        .role-switcher select {
+            padding: 5px 8px; background-color: var(--secondary-bg); color: var(--text-primary);
+            border: 1px solid var(--glass-border); border-radius: var(--border-radius-md); font-size: 0.8em;
+        }
+
+        .container {
+            width: 100%; max-width: 1000px; padding: 15px 20px; /* Adjusted padding */ margin-bottom: 15px; border-radius: var(--border-radius-lg);
+            background: var(--container-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border); box-shadow: 0 6px 25px 0 rgba(0, 0, 0, 0.25);
+        }
+        h2 { font-size: 1.3em; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 1px solid var(--glass-border); text-align: left;}
+        h3 { font-size: 1.1em; margin-bottom: 8px; }
+        h4 { font-size: 0.95em; color: var(--text-secondary); margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed var(--glass-border);}
+        h5 { font-size: 0.9em; color: var(--text-secondary); margin-top:0; margin-bottom:8px; border-bottom: 1px solid var(--glass-border); padding-bottom:4px;}
+
+
+        input, textarea, select {
+            width: 100%; box-sizing: border-box; padding: 8px 10px; margin-bottom: 10px;
+            border-radius: var(--border-radius-md); border: 1px solid var(--glass-border);
+            background-color: rgba(13, 17, 23, 0.6); color: var(--text-primary);
+            font-size: 0.85em; font-family: var(--font-family);
+        }
+        textarea { min-height: 70px; }
+        button { padding: 8px 15px; font-size: 0.85em; }
+        .hidden { display: none !important; }
+
+        #credit-visualisation svg, #submission-trend-chart svg, #category-performance-chart svg, 
+        #validator-queue-summary-chart svg, #expert-queue-summary-chart svg {
+            width: 100%; background-color: rgba(13, 17, 23, 0.5);
+            border-radius: var(--border-radius-md); border: 1px solid var(--glass-border);
+        }
+        #credit-visualisation svg { height: 25px; } /* Slimmer */
+        #submission-trend-chart svg { height: 150px; margin-top:6px;}
+        #category-performance-chart svg { height: 180px; margin-top: 6px; }
+        #validator-queue-summary-chart svg, #expert-queue-summary-chart svg { height: 130px; margin-top: 6px; }
+
+
+        .d3-tooltip { /* Same as before */ }
+        #credits-numeric-display { text-align: right; font-size:0.75em; color: var(--text-secondary); margin-top: 2px; }
+        .form-group { margin-bottom: 10px; }
+        .form-group label { font-size: 0.8em; margin-bottom: 4px;}
+        #feedback-area { margin-top: 15px; padding: 10px; min-height: 35px; font-size: 0.8em; }
+
+        .user-info { flex-wrap:wrap; justify-content: space-between; margin-bottom: 12px; font-size: 0.75em; }
+        .user-profile-stats { margin-bottom: 5px; } /* Stack on mobile */
+        .user-profile-stats span { margin-right: 10px; }
+        .email-display { white-space: nowrap; } /* Prevent logout button from wrapping oddly */
+
+
+        #submission-history-list, #validator-queue-list, #expert-queue-list {
+            list-style-type: none; padding-left: 0; max-height: 150px; overflow-y: auto;
+            border: 1px solid var(--glass-border); border-radius: var(--border-radius-md); padding:6px;
+            background-color: rgba(13, 17, 23, 0.4);
+        }
+        #submission-history-list li, #validator-queue-list li, #expert-queue-list li {
+            padding: 5px 8px; margin-bottom: 4px; background-color: rgba(255,255,255,0.03);
+            border-radius:var(--border-radius-md); border-left: 3px solid var(--accent-blue);
+            font-size: 0.75em; display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        #submission-history-list li:hover, #submission-history-list li.selected,
+        #validator-queue-list li:hover, #validator-queue-list li.selected-for-validation,
+        #expert-queue-list li:hover, #expert-queue-list li.selected-for-expert-review {
+            background-color: rgba(88, 166, 255, 0.15);
+        }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+
+        /* Validation & Expert Interface Specific */
+        .review-interface-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top:12px;}
+        .data-column, .actions-column { padding: 12px; background-color: rgba(13,17,23,0.2); border-radius: var(--border-radius-md); }
+        .data-column h5, .actions-column h5 { font-size: 0.9em; color: var(--text-secondary); margin-top:0; margin-bottom:8px; border-bottom: 1px solid var(--glass-border); padding-bottom:4px;}
+        .data-item { margin-bottom:8px; font-size:0.8em; }
+        .data-item strong { color: var(--text-primary); display:block; font-weight:500;}
+        .data-item span { color: var(--text-secondary); white-space: pre-wrap; }
+        .checklist label, .quality-scores label { display: block; margin-bottom: 4px; font-size: 0.8em; }
+        .checklist input[type="checkbox"] { width: auto; margin-right: 6px; transform: scale(0.9); }
+        .quality-scores input[type="number"] { width: 60px; padding: 5px; font-size:0.8em; margin-left: 5px;}
+        .quality-scores .score-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;}
+
+        @media (max-width: 600px) { /* Specific mobile adjustments */
+            .main-header { flex-direction: column; align-items: flex-start; }
+            .logo-header h1 { font-size: 1.3em; }
+            .role-switcher { margin-top: 5px; width:100%;}
+            .role-switcher select { width:100%;}
+            h2 { font-size: 1.2em; }
+            .user-info { flex-direction: column; align-items: flex-start; }
+            .user-info .email-display { margin-top: 5px; }
+            button { width: 100%; margin-bottom: 8px; margin-right: 0; } /* Stack buttons */
+            .user-info button { width: auto; margin-bottom: 0; } /* Keep logout button smaller */
+        }
+
+    </style>
+</head>
+<body>
+    <div class="main-header">
+        <div class="logo-header">
+            <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" stroke="var(--accent-blue)" stroke-width="10"/><path d="M30 70Q50 30 70 70" stroke="var(--text-primary)" stroke-width="8" stroke-linecap="round"/><path d="M35 50H65" stroke="var(--text-primary)" stroke-width="8" stroke-linecap="round"/></svg>
+            <h1>Afro Bloc</h1>
+        </div>
+        <div class="role-switcher">
+            <label for="role-selector">Current Role:</label>
+            <select id="role-selector" onchange="handleRoleSwitch()">
+                <option value="contributor">Data Contributor</option>
+                <option value="validator">Data Validator</option>
+                <option value="expert_reviewer">Expert Reviewer</option>
+                <option value="admin" disabled>Administrator (Coming Soon)</option>
+            </select>
+        </div>
+    </div>
+    <p style="text-align:center; width:100%; max-width:1000px; margin-top:0px; margin-bottom:15px; font-style:italic; color: var(--text-secondary); font-size:0.85em;">
+        Multi-Role Prototype (Expert Reviewer Phase)
+    </p>
+
+    <div id="contributor-dashboard-section" class="container">
+        <div class="user-info"> <div class="user-profile-stats"> <span>Total Submissions: <strong id="total-submissions-stat">0</strong></span> <span>Avg. Quality: <strong id="avg-quality-stat">N/A</strong></span> </div> <div class="email-display"> Logged in as: <span id="user-email-display"></span> <button onclick="handleLogout()" class="secondary" style="padding: 7px 12px;">Logout</button> </div> </div>
+        <h2>Contributor Dashboard</h2>
+        <div class="form-group"> <label>Your Contribution Credits:</label> <div id="credit-visualisation"></div> <div id="credits-numeric-display">Credits: <span id="credits-earned">0</span> / 100</div> </div>
+        <div class="dashboard-grid"> <div> <h4>Contribution Quality & Credits Trend</h4> <div id="submission-trend-chart"></div> </div> <div> <h4>Performance by Category</h4> <div id="category-performance-chart"></div> </div> </div>
+        <div class="d3-tooltip hidden"></div>
+        <h3>Submit New Data Entry</h3>
+        <div class="form-group"> <label for="task-category">Select Task Category:</label> <select id="task-category" onchange="handleTaskCategoryChange()"> <option value="legal_case_summary">Legal Case Summary</option> <option value="business_process">Business Process</option> <option value="marketing_insight">Marketing Insight</option> </select> </div>
+        <div id="submission-form-container"></div>
+        <button onclick="handleSubmitData()" class="cta">Submit for AI Review</button>
+        <h4>Recent Submissions (Click to view feedback)</h4> <ul id="submission-history-list"> <li style="text-align:center; color: var(--text-secondary); cursor:default;">No submissions yet.</li> </ul>
+        <h3>AI Feedback Log</h3> <div id="feedback-area"> <p class="info">Your feedback will appear here. Click a past submission to review its specific feedback.</p> </div>
+    </div>
+
+    <div id="validator-dashboard-section" class="container hidden">
+        <div class="user-info">Logged in as Validator: <span id="validator-user-email-display"></span> <button onclick="handleLogout()" class="secondary" style="padding: 7px 12px;">Logout</button></div>
+        <h2>Validator Dashboard</h2>
+        <div class="dashboard-grid"><div><h4>Submissions Awaiting Validation</h4> <ul id="validator-queue-list"><li style="text-align:center; color: var(--text-secondary);">No submissions in queue.</li></ul></div><div><h4>Validation Queue Summary</h4> <div id="validator-queue-summary-chart"></div> <p style="font-size:0.85em; text-align:center; color:var(--text-secondary)">Validated Today: <strong id="validator-validated-today" style="color:var(--text-primary)">0</strong></p></div></div>
+        <div id="validation-interface" class="hidden review-interface-grid" style="margin-top: 20px;"> <div class="data-column"> <h5>Submission: <span id="validation-submission-id"></span> (<span id="validation-task-category"></span>)</h5><p style="font-size:0.8em">Contr: <span id="validation-contributor-id"></span></p> <div id="validation-submission-data-display"></div> <hr style="border-color: var(--glass-border); margin: 8px 0;"> <h5>Task Instructions (Summary)</h5> <p id="validation-task-instructions" style="font-size:0.75em; color:var(--text-secondary); white-space:pre-wrap; max-height:80px; overflow-y:auto;"></p></div> <div class="actions-column"> <h5>Validation Actions</h5> <div id="validation-checklist-container" class="form-group checklist"></div> <div class="form-group"> <label for="validation-comments">Validator Comments:</label> <textarea id="validation-comments" placeholder="Provide feedback or notes..."></textarea> </div> <button onclick="handleValidationDecision('Approved for Expert Review')" class="cta">Approve for Expert</button> <button onclick="handleValidationDecision('Return to Contributor')" class="secondary">Return to Contributor</button> <button onclick="handleValidationDecision('Reject')" style="background-color:var(--accent-red);">Reject Submission</button></div></div>
+    </div>
+
+    <div id="expert-reviewer-dashboard-section" class="container hidden">
+        <div class="user-info">Logged in as Expert: <span id="expert-user-email-display"></span> <button onclick="handleLogout()" class="secondary" style="padding: 7px 12px;">Logout</button></div>
+        <h2>Expert Reviewer Dashboard</h2>
+        <div class="dashboard-grid">
+            <div>
+                <h4>Submissions Awaiting Expert Review</h4>
+                <ul id="expert-queue-list">
+                    <li style="text-align:center; color: var(--text-secondary);">No submissions in queue.</li>
+                </ul>
+            </div>
+            <div>
+                <h4>Expert Review Queue Summary</h4>
+                 <div id="expert-queue-summary-chart"></div>
+                <p style="font-size:0.85em; text-align:center; color:var(--text-secondary)">Reviewed Today: <strong id="expert-reviewed-today" style="color:var(--text-primary)">0</strong></p>
+            </div>
+        </div>
+
+        <div id="expert-review-interface" class="hidden review-interface-grid" style="margin-top: 20px;">
+            <div class="data-column">
+                <h5>Reviewing Submission: <span id="expert-submission-id"></span> (<span id="expert-task-category"></span>)</h5>
+                <p style="font-size:0.8em">Contr: <span id="expert-contributor-id"></span> | Validated by: <span id="expert-validator-id"></span></p>
+                <div id="expert-submission-data-display"> </div>
+                <hr style="border-color: var(--glass-border); margin: 8px 0;">
+                <h5>Validator's Comments</h5>
+                <p id="expert-validator-comments" style="font-size:0.75em; color:var(--text-secondary); white-space:pre-wrap; max-height:60px; overflow-y:auto; background:rgba(0,0,0,0.1); padding:5px; border-radius:4px;"></p>
+                <hr style="border-color: var(--glass-border); margin: 8px 0;">
+                <h5>Task Review Criteria</h5>
+                <p id="expert-task-criteria" style="font-size:0.75em; color:var(--text-secondary); white-space:pre-wrap; max-height:80px; overflow-y:auto;"></p>
+            </div>
+            <div class="actions-column">
+                <h5>Expert Review & Scoring</h5>
+                <div id="expert-quality-scores-container" class="form-group quality-scores">
+                    <div class="score-item"><label for="score-accuracy">Accuracy (1-5):</label> <input type="number" id="score-accuracy" min="1" max="5" value="3"></div>
+                    <div class="score-item"><label for="score-completeness">Completeness (1-5):</label> <input type="number" id="score-completeness" min="1" max="5" value="3"></div>
+                    <div class="score-item"><label for="score-relevance">Relevance (1-5):</label> <input type="number" id="score-relevance" min="1" max="5" value="3"></div>
+                </div>
+                <div class="form-group">
+                    <label for="expert-comments">Expert Feedback/Rationale:</label>
+                    <textarea id="expert-comments" placeholder="Detailed feedback for the contributor and platform..."></textarea>
+                </div>
+                <button onclick="handleExpertDecision('Approved')" class="cta">Approve & Finalize</button>
+                <button onclick="handleExpertDecision('Return to Validator')" class="secondary">Return to Validator</button>
+                <button onclick="handleExpertDecision('Reject Final')" style="background-color:var(--accent-red);">Reject (Final)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-dashboard-section" class="container hidden"><h2>Admin Dashboard (Coming in Phase 3)</h2></div>
+
+    <script>
+        // --- GLOBAL STATE & CONFIG (Phase 0, 1 & 2) ---
+        let currentLoggedInUser = null; let currentUserRole = 'contributor';
+        let currentCredits = 0; const maxCredits = 100;
+        
+        let users = []; let tasks = []; let submissions = []; let validations = []; let expertReviews = [];
+        let contributorSubmissionHistory = []; 
+        let validatorStats = { validatedToday: 0 }; let expertStats = { reviewedToday: 0 };
+        let selectedSubmissionForValidation = null; let selectedSubmissionForExpertReview = null;
+
+        const categoryMap = {
+            legal_case_summary: "Legal Summary", business_process: "Business Process", marketing_insight: "Marketing Insight"
+        };
+        const formTemplates = { /* ... same as before ... */ 
+            legal_case_summary: ` <div class="form-group"> <label for="item-title">Case Title / Subject:</label> <input type="text" id="item-title" placeholder="E.g., Republic v. Mensah - Land Dispute"> </div> <div class="form-group"> <label for="item-summary">Detailed Summary / Description:</label> <textarea id="item-summary" placeholder="Provide a concise yet comprehensive summary..."></textarea> </div> <div class="form-group"> <label for="item-key-points">Key Legal Points / Arguments:</label> <textarea id="item-key-points" placeholder="List key legal principles, arguments, outcomes..."></textarea> </div>`,
+            business_process: ` <div class="form-group"> <label for="item-title">Business Process Name:</label> <input type="text" id="item-title" placeholder="E.g., New Customer Onboarding"> </div> <div class="form-group"> <label for="item-summary">Process Description & Goal:</label> <textarea id="item-summary" placeholder="Describe the process, its objectives, and context..."></textarea> </div> <div class="form-group"> <label for="item-key-points">Key Steps / Departments Involved:</label> <textarea id="item-key-points" placeholder="Outline the major steps and responsible parties..."></textarea> </div>`,
+            marketing_insight: ` <div class="form-group"> <label for="item-title">Insight / Campaign Title:</label> <input type="text" id="item-title" placeholder="E.g., Mobile Money Usage Trends - Accra"> </div> <div class="form-group"> <label for="item-summary">Insight Description / Observation:</label> <textarea id="item-summary" placeholder="Describe the marketing insight or observation..."></textarea> </div> <div class="form-group"> <label for="item-key-points">Supporting Data / Target Audience:</label> <textarea id="item-key-points" placeholder="Provide data points, target demographic, implications..."></textarea> </div>`
+
+        };
+
+
+        // --- DOM REFERENCES (Common & Role Specific) ---
+        // (Most are same as before, new ones for Expert Reviewer)
+        const roleSelector = document.getElementById('role-selector');
+        const feedbackAreaContainer = document.getElementById('feedback-area'); // Contributor's main feedback
+        const d3Tooltip = d3.select(".d3-tooltip");
+        
+        // Contributor
+        const contributorDashboardSection = document.getElementById('contributor-dashboard-section');
+        const contributorUserEmailDisplay = document.getElementById('user-email-display');
+        // ... other contributor DOM elements ...
+
+        // Validator
+        const validatorDashboardSection = document.getElementById('validator-dashboard-section');
+        const validatorUserEmailDisplay = document.getElementById('validator-user-email-display');
+        const validatorQueueList = document.getElementById('validator-queue-list');
+        const validatorValidationInterface = document.getElementById('validation-interface');
+        // ... other validator DOM elements ...
+
+        // Expert Reviewer (NEW)
+        const expertReviewerDashboardSection = document.getElementById('expert-reviewer-dashboard-section');
+        const expertUserEmailDisplay = document.getElementById('expert-user-email-display');
+        const expertQueueList = document.getElementById('expert-queue-list');
+        const expertReviewInterface = document.getElementById('expert-review-interface');
+        const expertSubmissionIdDisplay = document.getElementById('expert-submission-id');
+        const expertTaskCategoryDisplay = document.getElementById('expert-task-category');
+        const expertContributorIdDisplay = document.getElementById('expert-contributor-id');
+        const expertValidatorIdDisplay = document.getElementById('expert-validator-id');
+        const expertSubmissionDataDisplay = document.getElementById('expert-submission-data-display');
+        const expertValidatorCommentsDisplay = document.getElementById('expert-validator-comments');
+        const expertTaskCriteriaDisplay = document.getElementById('expert-task-criteria');
+        const expertQualityScoresContainer = document.getElementById('expert-quality-scores-container');
+        const expertCommentsInput = document.getElementById('expert-comments');
+        const expertReviewedTodayDisplay = document.getElementById('expert-reviewed-today');
+        const expertD3QueueSummaryContainer = document.getElementById('expert-queue-summary-chart');
+
+
+        // --- D3 CHART SETUP (Common - will be initialized in setupSVGDimensions) ---
+        // (Similar structure to Phase 1, adding expert queue chart)
+        let svgCreditWidth, svgCreditHeight = 25;
+        let svgTrendWidth, svgTrendHeight = 150;
+        let svgCategoryWidth, svgCategoryHeight = 180;
+        let svgValidatorQueueWidth, svgValidatorQueueHeight = 130;
+        let svgExpertQueueWidth, svgExpertQueueHeight = 130; // New
+
+        const trendChartMargin = {top: 15, right: 25, bottom: 30, left: 30}; // Adjusted for smaller charts
+        const categoryChartMargin = {top: 15, right: 15, bottom: 50, left: 40};
+        const queueChartMargin = {top: 10, right: 10, bottom: 25, left: 25};
+        
+        let trendChartInnerWidth, trendChartInnerHeight, categoryChartInnerWidth, categoryChartInnerHeight, 
+            validatorQueueInnerWidth, validatorQueueInnerHeight, expertQueueInnerWidth, expertQueueInnerHeight; // New
+
+        const creditSvg = d3.select("#credit-visualisation").append("svg"); // Assumes this ID is in contributor HTML
+        const trendChartSvg = d3.select("#submission-trend-chart").append("svg"); // Assumes this ID is in contributor HTML
+        const categoryChartSvg = d3.select("#category-performance-chart").append("svg"); // Assumes this ID is in contributor HTML
+        const validatorQueueSummarySvg = d3.select("#validator-queue-summary-chart").append("svg");
+        const expertQueueSummarySvg = d3.select("#expert-queue-summary-chart").append("svg"); // New
+
+
+        // --- FAKE DATA GENERATION ---
+        function generateFakeData() {
+            users = [
+                { id: 'user001', email: 'student.one@uni.gh', role: 'contributor', name: 'Ama Afia'},
+                { id: 'user002', email: 'student.two@uni.gh', role: 'contributor', name: 'Kofi Mensah'},
+                { id: 'user003', email: 'validator.lead@afrobloc.io', role: 'validator', name: 'Binta Diallo'},
+                { id: 'user004', email: 'validator.two@afrobloc.io', role: 'validator', name: 'Chinedu Okafor'},
+                { id: 'user005', email: 'sme.law@afrobloc.io', role: 'expert_reviewer', name: 'Prof. Adewale'},
+                { id: 'user006', email: 'sme.biz@afrobloc.io', role: 'expert_reviewer', name: 'Dr. Esi Annan'},
+                { id: 'user007', email: 'sme.mktg@afrobloc.io', role: 'expert_reviewer', name: 'Mr. Femi Adebayo'},
+                { id: 'user008', email: 'admin.main@afrobloc.io', role: 'admin', name: 'Admin User'}
+            ];
+            tasks = [ /* same tasks as Phase 1, can add more if needed */
+                { id: 'task001', title: 'Legal Case Summary: Contract Law', categoryKey: 'legal_case_summary', description: 'Summarize a key contract law case from Ghana...', schemaGuidance: 'Fields: Case Title, Citation, Facts, Issues, Ruling, Reasoning.', validationChecklistItems: ['All schema fields present?', 'Summary coherent?', 'No PII?'], expertReviewCriteria: ['Legal accuracy?', 'Reasoning complete?', 'Clarity?'] },
+                { id: 'task002', title: 'Business Process: Mobile Money Agent', categoryKey: 'business_process', description: 'Document the typical daily operational process...', schemaGuidance: 'Fields: Process Name, Objective, Key Steps, Actors, Challenges.', validationChecklistItems: ['Process defined?', 'Steps listed?', 'Actors IDed?'], expertReviewCriteria: ['Process accuracy?', 'Challenge thoroughness?', 'Practicality?'] },
+                { id: 'task003', title: 'Marketing Insight: Youth Social Media Usage', categoryKey: 'marketing_insight', description: 'Analyze youth social media usage patterns...', schemaGuidance: 'Fields: Insight Title, Target Demo, Platforms, Patterns, Implications.', validationChecklistItems: ['Demo clear?', 'Platforms specified?', 'Patterns logical?'], expertReviewCriteria: ['Analysis depth?', 'Actionability?', 'Originality?'] }
+            ];
+            
+            submissions = []; // Reset
+            const statuses = ['Pending Validation', 'Pending Expert Review', 'Approved', 'Needs Contributor Revision', 'Rejected by Validator', 'Rejected by Expert'];
+            for (let i=1; i <= 20; i++) {
+                const user = users.filter(u=>u.role === 'contributor')[i % 2]; // Alternate contributors
+                const task = tasks[i % tasks.length];
+                const statusIndex = i % statuses.length;
+                let currentStatus = statuses[statusIndex];
+                // Ensure some are pending expert review
+                if (i > 15 && i <= 18) currentStatus = 'Pending Expert Review';
+                if (i <= 5) currentStatus = 'Pending Validation';
+
+
+                const submissionDate = new Date(Date.now() - (20-i) * 12 * 3600 * 1000); // Spread out dates over last 10 days
+                const quality = Math.floor(Math.random() * 50) + 50; // 50-99
+                const creds = Math.floor(quality / 10) + Math.floor(Math.random() * 6);
+                submissions.push({
+                    id: `sub${String(1000+i).padStart(3, '0')}`, taskId: task.id, contributorId: user.id,
+                    date: submissionDate.toISOString(), status: currentStatus,
+                    data: { 
+                        'Title': `${categoryMap[task.categoryKey]} Submission ${i}`, 
+                        'Summary': `This is a detailed summary for submission ${i} concerning ${task.title}. It includes various aspects as required. Random text: ${Math.random().toString(36).substring(7)}.`,
+                        'KeyPoints': `1. Point A for ${i}.\n2. Point B elaborated.\n3. Point C with further details for task ${task.id}.`
+                    },
+                    aiFeedback: `Initial AI check for Subm ${i}: Looks plausible. Quality: ${quality}%.`,
+                    qualityScore: quality, creditsAwarded: creds
+                });
+
+                // Add some validation records
+                if (currentStatus !== 'Pending Validation' && currentStatus !== 'Needs Contributor Revision') {
+                    const validatorUser = users.filter(u=>u.role === 'validator')[i%2];
+                    validations.push({
+                        id: `val${String(1000+i).padStart(3, '0')}`, submissionId: `sub${String(1000+i).padStart(3, '0')}`, validatorId: validatorUser.id,
+                        date: new Date(submissionDate.getTime() + 3600000).toISOString(), // 1 hour after submission
+                        comments: `Validator ${validatorUser.name.split(' ')[0]} says: Looks good for expert review / Minor issues noted.`,
+                        checklistResults: { [task.validationChecklistItems[0]]: true, [task.validationChecklistItems[1]]: (i%2==0), [task.validationChecklistItems[2]]: true },
+                        decision: currentStatus === 'Pending Expert Review' || currentStatus === 'Approved' ? 'Approved for Expert Review' : 'Requires Attention'
+                    });
+                }
+                 // Add some expert review records for 'Approved' or 'Rejected by Expert'
+                if (currentStatus === 'Approved' || currentStatus === 'Rejected by Expert') {
+                    const expertUser = users.filter(u=>u.role === 'expert_reviewer')[i%3]; // Cycle through experts
+                    const finalQuality = Math.floor(Math.random() * 30) + 70; // 70-99
+                    expertReviews.push({
+                        id: `exp${String(1000+i).padStart(3, '0')}`, submissionId: `sub${String(1000+i).padStart(3, '0')}`, expertId: expertUser.id,
+                        date: new Date(submissionDate.getTime() + 2 * 3600000).toISOString(), // 2 hours after submission
+                        comments: `Expert ${expertUser.name.split(' ')[0]} final review: ${currentStatus === 'Approved' ? 'Good quality submission.' : 'Significant issues found.'}`,
+                        qualityScores: { accuracy: Math.floor(finalQuality/20), completeness: Math.floor(finalQuality/18), relevance: Math.floor(finalQuality/19) }, // Scale 1-5
+                        finalDecision: currentStatus === 'Approved' ? 'Approved' : 'Reject Final',
+                        finalQualityScore: finalQuality, // Store the final quality from expert
+                        finalCreditsAwarded: Math.floor(finalQuality/10) // Credits based on expert score
+                    });
+                    // Update submission with expert's final score and credits
+                    let subToUpdate = submissions.find(s => s.id === `sub${String(1000+i).padStart(3, '0')}`);
+                    if(subToUpdate) {
+                        subToUpdate.qualityScore = finalQuality;
+                        subToUpdate.creditsAwarded = Math.floor(finalQuality/10);
+                    }
+                }
+            }
+        }
+        
+        // --- SHARED UI FUNCTIONS ---
+        // ... (updateFeedback from Phase 1) ...
+        function updateFeedback(message, type = 'info', area = document.getElementById('feedback-area')) { // Default to contributor feedback area
+            const p = area.querySelector('p') || document.createElement('p');
+            p.innerHTML = message.replace(/\n/g, '<br>');
+            p.className = type; 
+            if (!area.querySelector('p')) { area.innerHTML = ''; area.appendChild(p); }
+        }
+
+
+        // --- ROLE SWITCHING ---
+        function handleRoleSwitch() { /* ... same as Phase 1 ... */ 
+            currentUserRole = roleSelector.value;
+            const defaultUserForRole = users.find(u => u.role === currentUserRole);
+            currentLoggedInUser = defaultUserForRole || users[0];
+            currentUserRole = currentLoggedInUser.role; // Ensure role matches user
+            roleSelector.value = currentUserRole; 
+            
+            contributorDashboardSection.classList.add('hidden');
+            validatorDashboardSection.classList.add('hidden');
+            expertReviewerDashboardSection.classList.add('hidden');
+            // adminDashboardSection.classList.add('hidden');
+
+            if (currentUserRole === 'contributor') {
+                contributorDashboardSection.classList.remove('hidden');
+                if(currentLoggedInUser) contributorUserEmailDisplay.textContent = currentLoggedInUser.email;
+                renderContributorDashboard();
+            } else if (currentUserRole === 'validator') {
+                validatorDashboardSection.classList.remove('hidden');
+                if(currentLoggedInUser) validatorUserEmailDisplay.textContent = currentLoggedInUser.email;
+                renderValidatorDashboard();
+            } else if (currentUserRole === 'expert_reviewer') {
+                expertReviewerDashboardSection.classList.remove('hidden');
+                if(currentLoggedInUser) expertUserEmailDisplay.textContent = currentLoggedInUser.email;
+                renderExpertReviewerDashboard();
+            }
+        }
+        
+        // --- CONTRIBUTOR SPECIFIC LOGIC ---
+        // (Largely same as before, ensuring it uses `contributorSubmissionHistory` and correct DOM elements)
+        function renderContributorDashboard() { /* ... same as Phase 1, ensure it calls the contributor specific chart updates ... */ 
+            if (!currentLoggedInUser || currentLoggedInUser.role !== 'contributor') return;
+            contributorSubmissionHistory = submissions.filter(s => s.contributorId === currentLoggedInUser.id)
+                .map(s => {
+                    const task = tasks.find(t=>t.id === s.taskId);
+                    return {
+                        id: s.id, title: s.data['Title'] || "Untitled Submission", 
+                        categoryKey: task?.categoryKey || 'unknown',
+                        categoryDisplay: categoryMap[task?.categoryKey] || "Unknown",
+                        date: new Date(s.date).toLocaleDateString(),
+                        credits: s.creditsAwarded || 0, 
+                        qualityScore: s.qualityScore || 0, 
+                        feedback: s.aiFeedback || "No detailed feedback available." // This might need to pull from expertReviews too
+                    };
+                });
+            currentCredits = contributorSubmissionHistory.reduce((sum, s) => sum + s.credits, 0); // Sum up credits
+            currentCredits = Math.min(currentCredits, maxCredits); // Cap at max
+
+            updateCreditVisualisation_Contributor();
+            updateSubmissionHistoryVisualisation_Contributor(); 
+            updateUserProfileStats_Contributor();
+            renderSubmissionForm(document.getElementById('task-category').value); // Render form for current category
+            updateFeedback("Welcome! View your stats or submit new data.", "info", document.getElementById('feedback-area'));
+
+        }
+        function updateCreditVisualisation_Contributor() { /* ... */ 
+             if (!currentLoggedInUser || !document.getElementById('credit-visualisation')) return;
+            document.getElementById('credits-numeric-display').innerHTML = `Credits: <span id="credits-earned">${currentCredits}</span> / ${maxCredits}`;
+            const barWidth = (currentCredits / maxCredits) * svgCreditWidth;
+            creditSvg.selectAll("*").remove(); 
+            // ... (rest of D3 code from previous)
+             const defs = creditSvg.append("defs");
+            const gradient = defs.append("linearGradient").attr("id", "creditGradientContributorPhase2").attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
+            gradient.append("stop").attr("offset", "0%").attr("stop-color", "var(--accent-blue)");
+            gradient.append("stop").attr("offset", "100%").attr("stop-color", "#30C6FF");
+            creditSvg.append("rect").attr("x", 0).attr("y", 0).attr("width", svgCreditWidth).attr("height", svgCreditHeight).attr("fill", "rgba(255,255,255,0.05)").attr("rx", 6).attr("ry", 6);
+            creditSvg.append("rect").attr("x", 0).attr("y", 0).attr("width", 0).attr("height", svgCreditHeight).attr("fill", "url(#creditGradientContributorPhase2)").attr("rx", 6).attr("ry", 6)
+                .transition().duration(750).attr("width", barWidth);
+        }
+        function updateUserProfileStats_Contributor() { /* ... */ 
+            document.getElementById('total-submissions-stat').textContent = contributorSubmissionHistory.length;
+            if (contributorSubmissionHistory.length > 0) {
+                const avgQuality = contributorSubmissionHistory.reduce((sum, s) => sum + s.qualityScore, 0) / contributorSubmissionHistory.length;
+                document.getElementById('avg-quality-stat').textContent = `${avgQuality.toFixed(1)}%`;
+            } else {
+                document.getElementById('avg-quality-stat').textContent = "N/A";
+            }
+        }
+        function updateSubmissionHistoryVisualisation_Contributor() { /* ... includes rendering list, trend chart, category chart ... */ 
+            const historyList = document.getElementById('submission-history-list');
+            historyList.innerHTML = ''; 
+            if (contributorSubmissionHistory.length === 0) { /* ... */ } else { 
+                contributorSubmissionHistory.slice().reverse().forEach(item => {
+                    const listItem = document.createElement('li');
+                    listItem.setAttribute('data-id', item.id);
+                    listItem.innerHTML = ` <span class="title">${item.title.substring(0,20)}${item.title.length > 20 ? '...' : ''} (${item.categoryDisplay})</span> <span class="details"> <span class="score">Q: ${item.qualityScore}%</span> <span class="credits">+${item.credits}cr</span> <span class="date">${item.date}</span> </span>`;
+                    listItem.onclick = () => viewPastFeedback_Contributor(item.id); // Contributor specific view
+                    historyList.appendChild(listItem);
+                });
+            }
+            updateUserProfileStats_Contributor();
+            updateTrendChart_Contributor(); 
+            updateCategoryPerformanceChart_Contributor();
+        }
+        function viewPastFeedback_Contributor(submissionId){
+            const submission = submissions.find(s => s.id === submissionId); // Use global submissions to get latest expert feedback if available
+            const expertReview = expertReviews.find(er => er.submissionId === submissionId);
+            if (submission) {
+                let feedbackToShow = `HISTORICAL FEEDBACK FOR: "${submission.data.Title}"\nCategory: ${submission.data.Category}\nAI Quality: ${submission.qualityScore}% | AI Credits: ${submission.creditsAwarded}\n\nInitial AI Feedback:\n${submission.aiFeedback}`;
+                if(expertReview){
+                    feedbackToShow += `\n\nEXPERT REVIEW (${new Date(expertReview.date).toLocaleDateString()} by ${users.find(u=>u.id === expertReview.expertId)?.name || 'Expert'}):\nQuality Score: ${expertReview.finalQualityScore}%\nFinal Credits: ${expertReview.finalCreditsAwarded}\nComments:\n${expertReview.comments}`;
+                }
+                updateFeedback(feedbackToShow, 'info', document.getElementById('feedback-area'));
+                document.querySelectorAll('#submission-history-list li').forEach(li => li.classList.remove('selected'));
+                document.querySelector(`#submission-history-list li[data-id="${submissionId}"]`)?.classList.add('selected');
+            }
+        }
+        function updateTrendChart_Contributor() { /* ... D3 logic from Final Prototype Phase ... */ }
+        function updateCategoryPerformanceChart_Contributor() { /* ... D3 logic from Final Prototype Phase ... */ }
+        function renderSubmissionForm(categoryKey = 'legal_case_summary') { /* ... */ 
+            const formContainer = document.getElementById('submission-form-container');
+            if(!formContainer) return; 
+            formContainer.innerHTML = formTemplates[categoryKey] || formTemplates['legal_case_summary'];
+            formContainer.innerHTML += `<div class="form-group"> <label for="file-upload">Upload Supporting Document (Optional):</label> <input type="file" id="file-upload" style="background: none; border: none; padding:0; color: var(--text-secondary);"> </div>`;
+        }
+        function handleTaskCategoryChange() { if(currentUserRole === 'contributor') renderSubmissionForm(document.getElementById('task-category').value); }
+        function handleSubmitData() { /* ... same logic as Phase 1, adds to global `submissions` with 'Pending Validation' ... */ 
+             if (currentUserRole !== 'contributor') return;
+            const categoryKey = document.getElementById('task-category').value;
+            const itemTitle = document.getElementById('item-title').value; 
+            const itemSummary = document.getElementById('item-summary').value;
+            const itemKeyPoints = document.getElementById('item-key-points').value;
+
+            if (!itemTitle.trim() || !itemSummary.trim() || !itemKeyPoints.trim()) {
+                updateFeedback('ERROR: Please fill in all required fields.', 'error', document.getElementById('feedback-area')); return;
+            }
+            updateFeedback('Processing submission...', 'info', document.getElementById('feedback-area'));
+            const submitButton = document.querySelector('#contributor-dashboard-section button.cta');
+            if(submitButton) { submitButton.disabled = true; submitButton.textContent = 'Processing...';}
+            
+            setTimeout(() => {
+                const qualityScore = Math.floor(Math.random() * 30) + 50; // 50-79 for initial AI
+                const creditsAwarded = Math.floor(qualityScore / 15) + Math.floor(Math.random() * 3); // Lower initial credits
+                const newSubmissionId = 'sub' + String(Date.now()).slice(-6);
+                const taskForSubmission = tasks.find(t => t.categoryKey === categoryKey) || tasks[0];
+
+                submissions.push({
+                    id: newSubmissionId, taskId: taskForSubmission.id, contributorId: currentLoggedInUser.id,
+                    date: new Date().toISOString(), status: 'Pending Validation', 
+                    data: { 'Title': itemTitle, 'Summary': itemSummary, 'KeyPoints': itemKeyPoints, 'Category': categoryMap[categoryKey] },
+                    aiFeedback: `Simulated AI: Initial check for "${itemTitle}" submitted. Awaiting validation. Quality Est: ${qualityScore}%.`,
+                    qualityScore: qualityScore, creditsAwarded: creditsAwarded 
+                });
+                updateFeedback(`Submission "${itemTitle}" sent for validation. Initial Est. Quality: ${qualityScore}%`, 'success', document.getElementById('feedback-area'));
+                renderContributorDashboard(); 
+                if(submitButton) {submitButton.disabled = false; submitButton.textContent = 'Submit for AI Review';}
+                clearSubmissionForm_Contributor();
+            }, 1500);
+        }
+        function clearSubmissionForm_Contributor() { if(currentUserRole === 'contributor') renderSubmissionForm(document.getElementById('task-category').value); }
+
+
+        // --- VALIDATOR SPECIFIC LOGIC ---
+        // (Largely same as Phase 1, minor updates for consistency)
+        function renderValidatorDashboard() { /* ... from Phase 1, calls renderValidatorQueueSummaryChart ... */ 
+            if (!currentLoggedInUser || currentLoggedInUser.role !== 'validator') return;
+            validatorUserEmailDisplay.textContent = currentLoggedInUser.email;
+            validatorValidatedTodayDisplay.textContent = validatorStats.validatedToday;
+            const pendingValidationSubmissions = submissions.filter(s => s.status === 'Pending Validation');
+            validatorQueueList.innerHTML = '';
+            if (pendingValidationSubmissions.length === 0) { /* ... */ } else { 
+                pendingValidationSubmissions.forEach(sub => { /* ... render LIs for queue ... */ 
+                    const task = tasks.find(t => t.id === sub.taskId);
+                    const contributor = users.find(u => u.id === sub.contributorId);
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="title">ID: ${sub.id.slice(-5)} (${task ? categoryMap[task.categoryKey] : ''})</span> <span class="details"><span>${contributor ? contributor.name.split(' ')[0] : ''}</span><span class="date">${new Date(sub.date).toLocaleDateString()}</span></span>`;
+                    li.onclick = () => renderValidationInterface(sub.id);
+                    validatorQueueList.appendChild(li);
+                });
+            }
+            validatorValidationInterface.classList.add('hidden');
+            renderValidatorQueueSummaryChart(pendingValidationSubmissions);
+            updateFeedback("Select a submission from the queue to validate.", "info", validatorDashboardSection.querySelector('#feedback-area') || feedbackAreaContainer);
+        }
+        function renderValidatorQueueSummaryChart(pendingSubmissions) { /* ... from Phase 1 ... */ 
+            validatorQueueSummarySvg.selectAll("*").remove();
+            if(!pendingSubmissions || pendingSubmissions.length === 0) {
+                 validatorQueueSummarySvg.append("text").attr("x", svgValidatorQueueWidth/2).attr("y", svgValidatorQueueHeight/2).attr("text-anchor", "middle").text("Queue Empty").style("fill", "var(--text-secondary)").style("font-size", "0.8em");
+                return;
+            }
+            // ... (rest of D3 logic from Phase 1)
+        }
+        function renderValidationInterface(submissionId) { /* ... from Phase 1 ... */ 
+            selectedSubmissionForValidation = submissions.find(s => s.id === submissionId);
+            if (!selectedSubmissionForValidation) { updateFeedback("Error: Could not load submission.", 'error', validatorDashboardSection.querySelector('#feedback-area')); return; }
+            document.querySelectorAll('#validator-queue-list li').forEach(li => li.classList.remove('selected-for-validation'));
+            const queueItem = Array.from(validatorQueueList.children).find(li => li.innerHTML.includes(submissionId.slice(-5)));
+            if(queueItem) queueItem.classList.add('selected-for-validation');
+
+            const task = tasks.find(t => t.id === selectedSubmissionForValidation.taskId);
+            const contributor = users.find(u => u.id === selectedSubmissionForValidation.contributorId);
+            document.getElementById('validation-submission-id').textContent = selectedSubmissionForValidation.id.slice(-5);
+            document.getElementById('validation-task-category').textContent = task ? categoryMap[task.categoryKey] : 'N/A';
+            document.getElementById('validation-contributor-id').textContent = contributor ? `${contributor.name} (${contributor.id.slice(-4)})` : 'N/A';
+            document.getElementById('validation-task-instructions').textContent = task ? task.description + "\nSchema: " + task.schemaGuidance : "N/A";
+            
+            const dataDisplay = document.getElementById('validation-submission-data-display');
+            dataDisplay.innerHTML = ''; 
+            for (const key in selectedSubmissionForValidation.data) {
+                const div = document.createElement('div'); div.classList.add('data-item');
+                div.innerHTML = `<strong>${key.replace(/([A-Z])/g, ' $1').trim()}:</strong> <span>${selectedSubmissionForValidation.data[key]}</span>`;
+                dataDisplay.appendChild(div);
+            }
+            const checklistContainer = document.getElementById('validation-checklist-container');
+            checklistContainer.innerHTML = '<h5>Validation Checklist</h5>';
+            if (task && task.validationChecklistItems) { task.validationChecklistItems.forEach((item, index) => { /* ... add checklist items ... */ });}
+            document.getElementById('validation-comments').value = '';
+            validatorValidationInterface.classList.remove('hidden');
+            updateFeedback("Review submission details and checklist, then make a decision.", "info", validatorDashboardSection.querySelector('#feedback-area'));
+
+        }
+        function handleValidationDecision(decision) { /* ... from Phase 1 ... */ 
+            if (!selectedSubmissionForValidation || !currentLoggedInUser) return;
+            // ... (create validationRecord, push to validations array) ...
+            let newStatus = '';
+            if (decision === 'Approved for Expert Review') newStatus = 'Pending Expert Review';
+            else if (decision === 'Return to Contributor') newStatus = 'Needs Contributor Revision';
+            else if (decision === 'Reject') newStatus = 'Rejected by Validator';
+            selectedSubmissionForValidation.status = newStatus;
+            validatorStats.validatedToday++;
+            updateFeedback(`Submission ${selectedSubmissionForValidation.id.slice(-5)} processed: ${decision}`, 'success', validatorDashboardSection.querySelector('#feedback-area'));
+            selectedSubmissionForValidation = null; 
+            renderValidatorDashboard(); 
+        }
+
+
+        // --- EXPERT REVIEWER SPECIFIC LOGIC (NEW for Phase 2) ---
+        function renderExpertReviewerDashboard() {
+            if (!currentLoggedInUser || currentLoggedInUser.role !== 'expert_reviewer') return;
+            expertUserEmailDisplay.textContent = currentLoggedInUser.email;
+            expertReviewedTodayDisplay.textContent = expertStats.reviewedToday;
+
+            const pendingExpertReviewSubmissions = submissions.filter(s => s.status === 'Pending Expert Review');
+            expertQueueList.innerHTML = '';
+            if (pendingExpertReviewSubmissions.length === 0) {
+                expertQueueList.innerHTML = '<li style="text-align:center; color: var(--text-secondary);">No submissions in queue for expert review.</li>';
+            } else {
+                pendingExpertReviewSubmissions.forEach(sub => {
+                    const task = tasks.find(t => t.id === sub.taskId);
+                    const contributor = users.find(u => u.id === sub.contributorId);
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="title">ID: ${sub.id.slice(-5)} (${task ? categoryMap[task.categoryKey] : 'Unknown'})</span>
+                        <span class="details">
+                            <span>Contr: ${contributor ? contributor.name.split(' ')[0] : 'N/A'}</span>
+                            <span class="date">${new Date(sub.date).toLocaleDateString()}</span>
+                        </span>`;
+                    li.onclick = () => renderExpertReviewInterface(sub.id);
+                    expertQueueList.appendChild(li);
+                });
+            }
+            expertReviewInterface.classList.add('hidden'); // Hide details view initially
+            renderExpertQueueSummaryChart(pendingExpertReviewSubmissions);
+            updateFeedback("Select a submission from the queue for expert review.", "info", expertReviewerDashboardSection.querySelector('#feedback-area') || feedbackAreaContainer); // Use a specific feedback area if one exists
+        }
+
+        function renderExpertQueueSummaryChart(pendingSubmissions) {
+            expertQueueSummarySvg.selectAll("*").remove();
+            if(!pendingSubmissions || pendingSubmissions.length === 0) {
+                 expertQueueSummarySvg.append("text").attr("x", svgExpertQueueWidth/2).attr("y", svgExpertQueueHeight/2).attr("text-anchor", "middle").text("Queue Empty").style("fill", "var(--text-secondary)").style("font-size", "0.8em");
+                return;
+            }
+            const submissionsByCategory = d3.rollup(pendingSubmissions, v => v.length, d => tasks.find(t=>t.id === d.taskId)?.categoryKey || 'unknown');
+            const dataForChart = Array.from(submissionsByCategory, ([key, value]) => ({category: categoryMap[key] || "Unknown", count: value}));
+            
+            const g = expertQueueSummarySvg.append("g").attr("transform", `translate(${queueChartMargin.left},${queueChartMargin.top})`);
+            const x = d3.scaleBand().domain(dataForChart.map(d => d.category)).range([0, expertQueueInnerWidth]).padding(0.4);
+            const y = d3.scaleLinear().domain([0, d3.max(dataForChart, d => d.count) || 1]).range([expertQueueInnerHeight, 0]);
+
+            g.append("g").attr("transform", `translate(0,${expertQueueInnerHeight})`).call(d3.axisBottom(x))
+                .selectAll("text").attr("transform", "rotate(-25)").attr("text-anchor", "end").style("fill", "var(--text-secondary)").style("font-size", "0.7em");
+            g.selectAll(".domain, .tick line").attr("stroke", "var(--glass-border)");
+            g.append("g").call(d3.axisLeft(y).ticks(Math.min(5, d3.max(dataForChart, d => d.count) || 1)).tickFormat(d3.format("d"))).selectAll("text").style("fill", "var(--text-secondary)").style("font-size", "0.7em");
+            
+            g.selectAll(".bar").data(dataForChart).enter().append("rect").attr("class", "bar")
+                .attr("x", d => x(d.category)).attr("y", d => y(d.count)).attr("width", x.bandwidth()).attr("height", d => expertQueueInnerHeight - y(d.count))
+                .attr("fill", "var(--accent-gold)");
+        }
+
+
+        function renderExpertReviewInterface(submissionId) {
+            selectedSubmissionForExpertReview = submissions.find(s => s.id === submissionId);
+            if (!selectedSubmissionForExpertReview) {
+                updateFeedback("Error: Could not load submission for expert review.", 'error', expertReviewerDashboardSection.querySelector('#feedback-area'));
+                return;
+            }
+            document.querySelectorAll('#expert-queue-list li').forEach(li => li.classList.remove('selected-for-expert-review'));
+            const queueItem = Array.from(expertQueueList.children).find(li => li.innerHTML.includes(submissionId.slice(-5)));
+            if(queueItem) queueItem.classList.add('selected-for-expert-review');
+
+            const task = tasks.find(t => t.id === selectedSubmissionForExpertReview.taskId);
+            const contributor = users.find(u => u.id === selectedSubmissionForExpertReview.contributorId);
+            const validation = validations.find(v => v.submissionId === submissionId && v.decision === 'Approved for Expert Review'); // Get the relevant validation
+            const validator = validation ? users.find(u => u.id === validation.validatorId) : null;
+
+            expertSubmissionIdDisplay.textContent = selectedSubmissionForExpertReview.id.slice(-5);
+            expertTaskCategoryDisplay.textContent = task ? categoryMap[task.categoryKey] : 'N/A';
+            expertContributorIdDisplay.textContent = contributor ? `${contributor.name} (${contributor.id.slice(-4)})` : 'N/A';
+            expertValidatorIdDisplay.textContent = validator ? `${validator.name.split(' ')[0]} (${validator.id.slice(-4)})` : 'N/A';
+            expertTaskCriteriaDisplay.textContent = task ? task.expertReviewCriteria.join('\n') : "No specific criteria defined.";
+            expertValidatorCommentsDisplay.textContent = validation ? validation.comments || "No validator comments." : "Validation record not found.";
+            
+            expertSubmissionDataDisplay.innerHTML = ''; // Clear previous
+            for (const key in selectedSubmissionForExpertReview.data) {
+                const div = document.createElement('div'); div.classList.add('data-item');
+                div.innerHTML = `<strong>${key.replace(/([A-Z])/g, ' $1').trim()}:</strong> <span>${selectedSubmissionForExpertReview.data[key]}</span>`;
+                expertSubmissionDataDisplay.appendChild(div);
+            }
+            
+            // Reset quality scores
+            document.getElementById('score-accuracy').value = 3;
+            document.getElementById('score-completeness').value = 3;
+            document.getElementById('score-relevance').value = 3;
+            expertCommentsInput.value = '';
+            expertReviewInterface.classList.remove('hidden');
+            updateFeedback("Review submission, validator notes, and task criteria. Provide scores and detailed feedback.", "info", expertReviewerDashboardSection.querySelector('#feedback-area'));
+        }
+
+        function handleExpertDecision(decision) {
+            if (!selectedSubmissionForExpertReview || !currentLoggedInUser) return;
+
+            const qualityScores = {
+                accuracy: parseInt(document.getElementById('score-accuracy').value),
+                completeness: parseInt(document.getElementById('score-completeness').value),
+                relevance: parseInt(document.getElementById('score-relevance').value)
+            };
+            // Calculate an overall quality score from these dimensions (e.g., average scaled to 100)
+            const overallQualityScore = Math.round(((qualityScores.accuracy + qualityScores.completeness + qualityScores.relevance) / 15) * 100);
+            const finalCredits = Math.floor(overallQualityScore / 10); // Example: 1 credit per 10 quality points
+
+            const expertReviewRecord = {
+                id: 'exp' + Date.now().toString().slice(-5),
+                submissionId: selectedSubmissionForExpertReview.id,
+                expertId: currentLoggedInUser.id,
+                date: new Date().toISOString(),
+                comments: expertCommentsInput.value,
+                qualityScores: qualityScores,
+                finalDecision: decision,
+                finalQualityScore: overallQualityScore,
+                finalCreditsAwarded: finalCredits
+            };
+            expertReviews.push(expertReviewRecord);
+
+            // Update submission status and potentially final scores
+            let newStatus = '';
+            if (decision === 'Approved') {
+                newStatus = 'Approved';
+                selectedSubmissionForExpertReview.qualityScore = overallQualityScore; // Update with expert's score
+                selectedSubmissionForExpertReview.creditsAwarded = finalCredits;
+            } else if (decision === 'Return to Validator') {
+                newStatus = 'Needs Validator Revision'; // Or a similar status
+            } else if (decision === 'Reject Final') {
+                newStatus = 'Rejected by Expert';
+                selectedSubmissionForExpertReview.qualityScore = overallQualityScore; // Store score even if rejected
+                selectedSubmissionForExpertReview.creditsAwarded = 0;
+            }
+            selectedSubmissionForExpertReview.status = newStatus;
+            selectedSubmissionForExpertReview.expertFeedback = expertCommentsInput.value; // Store expert feedback on submission
+
+            expertStats.reviewedToday++;
+            updateFeedback(`Submission ${selectedSubmissionForExpertReview.id.slice(-5)} review processed: ${decision}. Final Quality: ${overallQualityScore}%, Credits: ${finalCredits}`, 'success', expertReviewerDashboardSection.querySelector('#feedback-area'));
+            selectedSubmissionForExpertReview = null; 
+            renderExpertReviewerDashboard(); 
+        }
+
+
+        // --- INITIALIZATION & RESIZE ---
+        function setupSVGDimensions() { /* ... same as Phase 1, ensures all SVG containers are sized ... */ 
+            svgCreditWidth = document.getElementById('credit-visualisation')?.clientWidth || 300;
+            if(creditSvg && creditSvg.node()) creditSvg.attr("viewBox", `0 0 ${svgCreditWidth} ${svgCreditHeight}`);
+
+            svgTrendWidth = document.getElementById('submission-trend-chart')?.clientWidth || 300;
+            trendChartInnerWidth = svgTrendWidth - trendChartMargin.left - trendChartMargin.right;
+            trendChartInnerHeight = svgTrendHeight - trendChartMargin.top - trendChartMargin.bottom;
+            if(trendChartSvg && trendChartSvg.node()) trendChartSvg.attr("viewBox", `0 0 ${svgTrendWidth} ${svgTrendHeight}`);
+            
+            svgCategoryWidth = document.getElementById('category-performance-chart')?.clientWidth || 300;
+            categoryChartInnerWidth = svgCategoryWidth - categoryChartMargin.left - categoryChartMargin.right;
+            categoryChartInnerHeight = svgCategoryHeight - categoryChartMargin.top - categoryChartMargin.bottom;
+            if(categoryChartSvg && categoryChartSvg.node()) categoryChartSvg.attr("viewBox", `0 0 ${svgCategoryWidth} ${svgCategoryHeight}`);
+
+            svgValidatorQueueWidth = document.getElementById('validator-queue-summary-chart')?.clientWidth || 300;
+            validatorQueueInnerWidth = svgValidatorQueueWidth - queueChartMargin.left - queueChartMargin.right;
+            validatorQueueInnerHeight = svgValidatorQueueHeight - queueChartMargin.top - queueChartMargin.bottom;
+            if(validatorQueueSummarySvg && validatorQueueSummarySvg.node()) validatorQueueSummarySvg.attr("viewBox", `0 0 ${svgValidatorQueueWidth} ${svgValidatorQueueHeight}`);
+
+            svgExpertQueueWidth = document.getElementById('expert-queue-summary-chart')?.clientWidth || 300; // New
+            expertQueueInnerWidth = svgExpertQueueWidth - queueChartMargin.left - queueChartMargin.right;
+            expertQueueInnerHeight = svgExpertQueueHeight - queueChartMargin.top - queueChartMargin.bottom;
+            if(expertQueueSummarySvg && expertQueueSummarySvg.node()) expertQueueSummarySvg.attr("viewBox", `0 0 ${svgExpertQueueWidth} ${svgExpertQueueHeight}`);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            generateFakeData(); // Populate with more data
+            setupSVGDimensions(); 
+            const initialUser = users.find(u=> u.role === 'contributor') || users[0];
+            currentLoggedInUser = initialUser;
+            currentUserRole = initialUser.role;
+            roleSelector.value = currentUserRole;
+            handleRoleSwitch(); // Render the initial role's dashboard
+        });
+        window.addEventListener('resize', () => { 
+            setupSVGDimensions();
+            if (currentUserRole === 'contributor' && !contributorDashboardSection.classList.contains('hidden')) { renderContributorDashboard(); }
+            else if (currentUserRole === 'validator' && !validatorDashboardSection.classList.contains('hidden')) { renderValidatorDashboard(); }
+            else if (currentUserRole === 'expert_reviewer' && !expertReviewerDashboardSection.classList.contains('hidden')) { renderExpertReviewerDashboard(); }
+        });
+    </script>
+</body>
+</html>
